@@ -15,10 +15,10 @@ public class CrossValidator {
                 training.remove(0);
             }
 
-            int[] positiveDemocraticResponses = new int[16];
-            int[] negativeDemocraticResponses = new int[16];
-            int[] positiveRepublicanResponses = new int[16];
-            int[] negativeRepublicanResponses = new int[16];
+            double[] positiveDemocraticResponses = new double[16];
+            double[] negativeDemocraticResponses = new double[16];
+            double[] positiveRepublicanResponses = new double[16];
+            double[] negativeRepublicanResponses = new double[16];
 
             int democrats = calcCharacteristicsAndDemocrats(training, positiveDemocraticResponses,
                     negativeDemocraticResponses, positiveRepublicanResponses, negativeRepublicanResponses);
@@ -33,11 +33,11 @@ public class CrossValidator {
             }
         }
 
-        System.out.println("Overall: " + (int)(100*((double)totalCorrectGuesses / (double)(10*43))) + "%");
+        System.out.println("Overall: " + (int)(100*((double)totalCorrectGuesses / (double)(10*tenth))) + "%");
     }
 
-    private static int calcCharacteristicsAndDemocrats(List<String> training, int[] positiveDemocratResponses, int[] negativeDemocratResponses,
-                                                       int[] positiveRepublicanResponses, int[] negativeRepublicanResponses) {
+    private static int calcCharacteristicsAndDemocrats(List<String> training, double[] positiveDemocratResponses, double[] negativeDemocratResponses,
+                                                       double[] positiveRepublicanResponses, double[] negativeRepublicanResponses) {
         int democratsCount = 0;
 
         for(String row : training) {
@@ -53,7 +53,7 @@ public class CrossValidator {
         return democratsCount;
     }
 
-    private static void addCharacteristics(String[] characteristics, int[] positiveResponses, int[] negativeResponses) {
+    private static void addCharacteristics(String[] characteristics, double[] positiveResponses, double[] negativeResponses) {
         for (int i = 1; i < characteristics.length; i++) {
             if (characteristics[i].charAt(0) == '?') {
                 continue;
@@ -65,18 +65,18 @@ public class CrossValidator {
         }
     }
 
-    private static void predict(List<String> testing, double chanceToBeADemocrat, int[] positiveDemocrats, int[] negativeDemocrats,
-                                int[] positiveRepublicans, int[] negativeRepublicans) {
+    private static void predict(List<String> testing, double chanceToBeADemocrat, double[] positiveDemocrats, double[] negativeDemocrats,
+                                double[] positiveRepublicans, double[] negativeRepublicans) {
         double chanceToBeARepublican = 1 - chanceToBeADemocrat;
         List<String> predictions = new ArrayList<>();
         List<String> actual = new ArrayList<>();
 
         for (String row : testing) {
-            String[] characterstics = row.split(",");
-            actual.add(characterstics[0]);
-            String votedFor = getVotedFor(characterstics, chanceToBeADemocrat, chanceToBeARepublican,
+            String[] characteristics = row.split(",");
+            actual.add(characteristics[0]);
+            String prediction = makePrediction(characteristics, chanceToBeADemocrat, chanceToBeARepublican,
                     positiveDemocrats, negativeDemocrats, positiveRepublicans, negativeRepublicans);
-            predictions.add(votedFor);
+            predictions.add(prediction);
         }
 
         int correctGuesses = 0;
@@ -91,21 +91,19 @@ public class CrossValidator {
         System.out.println("Correct guesses: " + correctGuesses + " out of " + predictions.size() + "; As percentage: " + (int)(100*((double)correctGuesses / (double)predictions.size()) + 0.5) + "%");
     }
 
-    private static String getVotedFor(String[] characterstics, double chanceToBeADemocrat, double chanceToBeARepublican,
-                                      int[] positiveDemocrats, int[] negativeDemocrats, int[] positiveRepublicans, int[] negativeRepublicans) {
-        for (int i = 1; i < characterstics.length; i++) {
-            if(characterstics[i].charAt(0) == 'y') {
-                chanceToBeADemocrat *= (double)positiveDemocrats[i-1] / (double)(positiveDemocrats[i-1] + negativeDemocrats[i-1]);
-                chanceToBeARepublican *= (double)positiveRepublicans[i-1] / (double)(positiveRepublicans[i-1] + negativeRepublicans[i-1]);
+    private static String makePrediction(String[] characteristics, double chanceToBeADemocrat, double chanceToBeARepublican,
+                                         double[] positiveDemocrats, double[] negativeDemocrats, double[] positiveRepublicans, double[] negativeRepublicans) {
+        double initialChanceDemocrat = chanceToBeADemocrat, initialChanceRepublican = chanceToBeARepublican;
+        for (int i = 1; i < characteristics.length; i++) {
+            if(characteristics[i].charAt(0) == 'y') {
+                chanceToBeADemocrat *= initialChanceDemocrat * (positiveDemocrats[i-1] / (positiveDemocrats[i-1] + negativeDemocrats[i-1]));
+                chanceToBeARepublican *= initialChanceRepublican * (positiveRepublicans[i-1] / (positiveRepublicans[i-1] + negativeRepublicans[i-1]));
             } else {
-                chanceToBeADemocrat *= (double)negativeDemocrats[i-1] / (double)(positiveDemocrats[i-1] + negativeDemocrats[i-1]);
-                chanceToBeARepublican *= (double)negativeRepublicans[i-1] / (double)(positiveRepublicans[i-1] + negativeRepublicans[i-1]);
+                chanceToBeADemocrat *= initialChanceDemocrat * (negativeDemocrats[i-1] / (positiveDemocrats[i-1] + negativeDemocrats[i-1]));
+                chanceToBeARepublican *= initialChanceRepublican * (negativeRepublicans[i-1] / (positiveRepublicans[i-1] + negativeRepublicans[i-1]));
             }
         }
 
         return chanceToBeADemocrat > chanceToBeARepublican ? DEMOCRAT : REPUBLICAN;
     }
-
-
-
 }
